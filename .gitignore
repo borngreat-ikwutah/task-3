@@ -1,0 +1,29 @@
+# deps
+node_modules/
+
+# environment files
+.env
+.env.*
+!.env.example
+
+# bun
+bun.lockb
+bunfig.toml
+
+# cloudflare workers
+.dev.vars
+.worker
+.vercel
+.wrangler
+.wrangler/
+.wrangler.toml
+.wrangler.toml.backup
+
+# build artifacts
+dist/
+build/
+coverage/
+dist*/
+
+# logs
+*.log
