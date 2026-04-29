@@ -12,7 +12,8 @@
     "build": "wrangler deploy --dry-run",
     "deploy": "wrangler deploy",
     "dev:worker": "wrangler dev",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "lint": "bunx tsc --noEmit"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.7.6",
@@ -27,6 +28,7 @@
     "@types/bun": "latest",
     "@types/uuid": "^11.0.0",
     "drizzle-kit": "^0.31.10",
-    "wrangler": "^3.114.0"
+    "wrangler": "^3.114.0",
+    "typescript": "^5.4.5"
   }
 }

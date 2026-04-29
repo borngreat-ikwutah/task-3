@@ -6,16 +6,19 @@ import {
   getProfileByIdController,
   listProfilesController,
   searchProfilesController,
+  exportProfilesController,
 } from "../controllers/profile.controller";
 import {
   createProfileRequestSchema,
   profileParamsSchema,
   profileQuerySchema,
 } from "../schemas/profile.schema";
+import { requireRole } from "../middleware/auth.middleware";
 
 export const profilesRoute = new Hono()
   .post(
     "/",
+    requireRole("admin"),
     zValidator("json", createProfileRequestSchema, (result, c) => {
       if (!result.success) {
         return c.json(
@@ -60,6 +63,10 @@ export const profilesRoute = new Hono()
     searchProfilesController,
   )
   .get(
+    "/export",
+    exportProfilesController,
+  )
+  .get(
     "/:id",
     zValidator("param", profileParamsSchema, (result, c) => {
       if (!result.success) {
@@ -76,6 +83,7 @@ export const profilesRoute = new Hono()
   )
   .delete(
     "/:id",
+    requireRole("admin"),
     zValidator("param", profileParamsSchema, (result, c) => {
       if (!result.success) {
         return c.json(

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AppBindings } from "../types/hono";
 
 const genderizeSchema = z.object({
   name: z.string(),
@@ -117,27 +118,30 @@ export function classifyAge(age: number): ExternalProfileData["ageGroup"] {
   return "senior";
 }
 
-export async function getGenderize(name: string): Promise<GenderizeResult> {
+export async function getGenderize(env: AppBindings, name: string): Promise<GenderizeResult> {
+  const baseUrl = env.GENDERIZE_API_URL || "https://api.genderize.io";
   const data = await fetchJson(
-    `https://api.genderize.io?name=${encodeURIComponent(name)}`,
+    `${baseUrl}?name=${encodeURIComponent(name)}`,
     "Genderize",
   );
 
   return genderizeSchema.parse(data);
 }
 
-export async function getAgify(name: string): Promise<AgifyResult> {
+export async function getAgify(env: AppBindings, name: string): Promise<AgifyResult> {
+  const baseUrl = env.AGIFY_API_URL || "https://api.agify.io";
   const data = await fetchJson(
-    `https://api.agify.io?name=${encodeURIComponent(name)}`,
+    `${baseUrl}?name=${encodeURIComponent(name)}`,
     "Agify",
   );
 
   return agifySchema.parse(data);
 }
 
-export async function getNationalize(name: string): Promise<NationalizeResult> {
+export async function getNationalize(env: AppBindings, name: string): Promise<NationalizeResult> {
+  const baseUrl = env.NATIONALIZE_API_URL || "https://api.nationalize.io";
   const data = await fetchJson(
-    `https://api.nationalize.io?name=${encodeURIComponent(name)}`,
+    `${baseUrl}?name=${encodeURIComponent(name)}`,
     "Nationalize",
   );
 
@@ -145,12 +149,13 @@ export async function getNationalize(name: string): Promise<NationalizeResult> {
 }
 
 export async function buildExternalProfileData(
+  env: AppBindings,
   name: string,
 ): Promise<ExternalProfileData> {
   const [genderize, agify, nationalize] = await Promise.all([
-    getGenderize(name),
-    getAgify(name),
-    getNationalize(name),
+    getGenderize(env, name),
+    getAgify(env, name),
+    getNationalize(env, name),
   ]);
 
   if (genderize.gender === null || genderize.count === 0) {

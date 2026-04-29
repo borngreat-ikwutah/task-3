@@ -4,10 +4,10 @@ import {
   deleteProfileService,
   getProfileByIdService,
   listProfilesService,
+  exportProfilesCsvService,
   type ApiError,
   type ApiSuccess,
   type ProfileResponse,
-  type WorkerEnv,
 } from "../services/profile.service";
 import {
   profileParamsSchema,
@@ -15,6 +15,7 @@ import {
   type ProfileQuery,
 } from "../schemas/profile.schema";
 import { parseProfileQuery } from "../parsers/profile-query.parser";
+import { HonoEnv } from "../types/hono";
 
 function toErrorResponse(message: string): ApiError {
   return {
@@ -62,7 +63,7 @@ function buildSort(query: ProfileQuery) {
 }
 
 export async function createProfileController(
-  c: Context<{ Bindings: WorkerEnv }>,
+  c: Context<HonoEnv>,
 ) {
   try {
     const body = await c.req.json().catch(() => null);
@@ -90,7 +91,7 @@ export async function createProfileController(
 }
 
 export async function getProfileByIdController(
-  c: Context<{ Bindings: WorkerEnv }>,
+  c: Context<HonoEnv>,
 ) {
   try {
     const parsed = profileParamsSchema.safeParse(c.req.param());
@@ -115,7 +116,7 @@ export async function getProfileByIdController(
 }
 
 export async function listProfilesController(
-  c: Context<{ Bindings: WorkerEnv }>,
+  c: Context<HonoEnv>,
 ) {
   try {
     const parsed = profileQuerySchema.safeParse(c.req.query());
@@ -128,13 +129,15 @@ export async function listProfilesController(
     const pagination = buildPagination(query);
     const sort = buildSort(query);
 
-    const result = await listProfilesService(c.env, filters, pagination, sort);
+    const result = await listProfilesService(c.env, filters, pagination, sort, "/api/profiles");
 
     return c.json({
       status: "success",
       page: result.page,
       limit: result.limit,
       total: result.total,
+      total_pages: result.total_pages,
+      links: result.links,
       data: result.data,
     });
   } catch (error) {
@@ -144,7 +147,7 @@ export async function listProfilesController(
 }
 
 export async function searchProfilesController(
-  c: Context<{ Bindings: WorkerEnv }>,
+  c: Context<HonoEnv>,
 ) {
   try {
     const parsed = profileQuerySchema.safeParse(c.req.query());
@@ -180,13 +183,15 @@ export async function searchProfilesController(
     const pagination = buildPagination(query);
     const sort = buildSort(query);
 
-    const result = await listProfilesService(c.env, filters, pagination, sort);
+    const result = await listProfilesService(c.env, filters, pagination, sort, "/api/profiles/search");
 
     return c.json({
       status: "success",
       page: result.page,
       limit: result.limit,
       total: result.total,
+      total_pages: result.total_pages,
+      links: result.links,
       data: result.data,
     });
   } catch (error) {
@@ -196,7 +201,7 @@ export async function searchProfilesController(
 }
 
 export async function deleteProfileController(
-  c: Context<{ Bindings: WorkerEnv }>,
+  c: Context<HonoEnv>,
 ) {
   try {
     const parsed = profileParamsSchema.safeParse(c.req.param());
@@ -211,6 +216,35 @@ export async function deleteProfileController(
     }
 
     return c.body(null, 204);
+  } catch (error) {
+    console.error(error);
+    return c.json<ApiError>(toErrorResponse("Internal server error"), 500);
+  }
+}
+
+export async function exportProfilesController(
+  c: Context<HonoEnv>,
+) {
+  try {
+    const format = c.req.query("format");
+    if (format !== "csv") {
+      return c.json(toErrorResponse("Invalid export format. Only 'csv' is supported."), 400);
+    }
+
+    const parsed = profileQuerySchema.safeParse(c.req.query());
+    const query = parsed.success ? parsed.data : {} as any;
+    
+    const filters = buildProfileFilters(query);
+    const sort = buildSort(query);
+
+    const csvContent = await exportProfilesCsvService(c.env, filters, sort);
+    
+    const timestamp = Math.floor(Date.now() / 1000);
+    
+    c.header("Content-Type", "text/csv");
+    c.header("Content-Disposition", `attachment; filename="profiles_${timestamp}.csv"`);
+    
+    return c.text(csvContent, 200);
   } catch (error) {
     console.error(error);
     return c.json<ApiError>(toErrorResponse("Internal server error"), 500);

@@ -50,6 +50,12 @@ export type ProfileListResponse = {
   page: number;
   limit: number;
   total: number;
+  total_pages: number;
+  links: {
+    self: string;
+    next: string | null;
+    prev: string | null;
+  };
   data: ProfileListItem[];
 };
 
@@ -107,7 +113,7 @@ export async function createOrGetProfile(
     };
   }
 
-  const externalData = await buildExternalProfileData(normalizedName);
+  const externalData = await buildExternalProfileData(env, normalizedName);
 
   const newProfile: NewProfileRecord = {
     id: createUuidV7(),
@@ -164,14 +170,32 @@ export async function listProfilesService(
   filters: ProfileQueryFilters = {},
   pagination: ProfileListPagination = { page: 1, limit: 10 },
   sort: ProfileListSort = {},
+  baseUrl: string = "/api/profiles",
 ): Promise<ProfileListResponse> {
   const result = await listProfiles(env, filters, pagination, sort);
   const data = result.data.map(toProfileResponse);
+
+  const totalPages = Math.ceil(result.total / result.limit);
+
+  const buildLink = (p: number) => {
+    const url = new URL(baseUrl, "http://localhost"); // base doesn't matter for query params
+    url.searchParams.set("page", String(p));
+    url.searchParams.set("limit", String(result.limit));
+    // Add filters/sort if needed, but the requirement only shows page/limit in example
+    return `${url.pathname}${url.search}`;
+  };
+
   return {
     status: "success",
     page: result.page,
     limit: result.limit,
     total: result.total,
+    total_pages: totalPages,
+    links: {
+      self: buildLink(result.page),
+      next: result.page < totalPages ? buildLink(result.page + 1) : null,
+      prev: result.page > 1 ? buildLink(result.page - 1) : null,
+    },
     data,
   };
 }
@@ -181,4 +205,47 @@ export async function deleteProfileService(
   id: string,
 ): Promise<boolean> {
   return deleteProfileById(env, id);
+}
+
+export async function exportProfilesCsvService(
+  env: WorkerEnv,
+  filters: ProfileQueryFilters = {},
+  sort: ProfileListSort = {},
+): Promise<string> {
+  const result = await listProfiles(
+    env,
+    filters,
+    { page: 1, limit: 10000 },
+    sort,
+  );
+
+  const headers = [
+    "id",
+    "name",
+    "gender",
+    "gender_probability",
+    "age",
+    "age_group",
+    "country_id",
+    "country_name",
+    "country_probability",
+    "created_at",
+  ];
+
+  const rows = result.data.map((p) =>
+    [
+      p.id,
+      p.name,
+      p.gender,
+      p.genderProbability,
+      p.age,
+      p.ageGroup,
+      p.countryId,
+      p.countryName,
+      p.countryProbability,
+      p.createdAt,
+    ].join(","),
+  );
+
+  return [headers.join(","), ...rows].join("\n");
 }

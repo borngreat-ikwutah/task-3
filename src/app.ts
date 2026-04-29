@@ -1,19 +1,36 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import {
+  authenticateToken,
+  enforceActiveUser,
+} from "./middleware/auth.middleware";
 import { profilesRoute } from "./routes/profiles.route";
+import { authRoute } from "./routes/auth.route";
+import { HonoEnv } from "./types/hono";
 
-const app = new Hono<{ Bindings: { DB: D1Database } }>();
+const app = new Hono<HonoEnv>();
 
 app.use(
   "*",
   cors({
     origin: "*",
     allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type"],
+    allowHeaders: ["Content-Type", "Authorization", "X-API-Version"],
   }),
 );
 
 app.use("*", async (c, next) => {
+  const version = c.req.header("X-API-Version");
+  if (version !== "1") {
+    return c.json(
+      {
+        status: "error",
+        message: "API version header required",
+      },
+      400,
+    );
+  }
+
   c.header("Access-Control-Allow-Origin", "*");
   await next();
 });
@@ -25,7 +42,15 @@ app.get("/", (c) => {
   });
 });
 
-app.route("/api/profiles", profilesRoute);
+app.route("/auth", authRoute);
+
+// Protected routes - apply auth middleware to api/profiles
+const protectedProfiles = new Hono<HonoEnv>()
+  .use(authenticateToken)
+  .use(enforceActiveUser)
+  .route("", profilesRoute);
+
+app.route("/api/profiles", protectedProfiles);
 
 app.onError((err, c) => {
   console.error(err);

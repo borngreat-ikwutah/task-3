@@ -1,4 +1,4 @@
-# Task 2 Backend API
+# Task 3 Backend API
 
 This project is the backend solution for **HNG Task 2**. It is built with a **scalable, type-safe backend architecture** using **Hono**, **Drizzle ORM**, **Cloudflare D1**, **Zod**, and **Bun**.
 
