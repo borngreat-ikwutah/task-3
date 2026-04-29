@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+// Declare global Bun and process for TypeScript when bun-types/node-types are not in global scope
+declare const Bun: any;
+declare const process: any;
+
 const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])

@@ -2,8 +2,12 @@ import { drizzle } from "drizzle-orm/d1";
 import type { AnyD1Database } from "drizzle-orm/d1";
 import { createUuidV7 } from "../utils";
 import { profiles } from "./schema";
-import fs from "fs";
-import path from "path";
+// @ts-ignore
+import fs from "node:fs";
+// @ts-ignore
+import path from "node:path";
+
+declare const process: any;
 
 type SeedProfile = Omit<
   typeof profiles.$inferInsert,
@@ -37,12 +41,14 @@ function getDatabase() {
 export async function seedDatabase() {
   const db = getDatabase();
 
-  const dataPath = path.resolve(import.meta.dir, "seed-data/profiles.json");
+  // @ts-ignore
+  const dir = import.meta.dir || __dirname;
+  const dataPath = path.resolve(dir, "seed-data/profiles.json");
   const rawData = fs.readFileSync(dataPath, "utf-8");
   const parsedData = JSON.parse(rawData);
   const profilesList = parsedData.profiles || parsedData;
 
-  const BATCH_SIZE = 50; // Cloudflare D1 limit per query is relatively small, so batching is needed
+  const BATCH_SIZE = 50; 
   let inserted = 0;
 
   for (let i = 0; i < profilesList.length; i += BATCH_SIZE) {
@@ -73,6 +79,7 @@ export async function seedDatabase() {
   console.log(`Successfully completed seeding ${inserted} profiles`);
 }
 
+// @ts-ignore
 if (import.meta.main) {
   seedDatabase().catch((error) => {
     console.error("Seeding failed:", error);

@@ -8,6 +8,7 @@
     "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx",
     "esModuleInterop": true,
-    "types": ["bun"],
+    "types": ["@cloudflare/workers-types"],
+    "skipLibCheck": true,
   },
 }
