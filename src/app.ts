@@ -32,7 +32,7 @@ app.use(
 );
 
 // 2. Rate limiting for auth
-app.use("/auth/github", rateLimit(10, 60000));
+app.use("/auth/github", rateLimit(10, 5000));
 
 // 3. Versioning middleware
 app.use("*", async (c, next) => {

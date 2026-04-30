@@ -46,19 +46,36 @@ src/
 
 ## 🔐 Authentication & Security
 
-### OAuth Flow
-1. User initiates login via `/auth/github`.
-2. Redirected to GitHub for authorization.
-3. Callback handled at `/auth/github/callback`, exchanging code for user profile.
-4. User record is upserted, and a JWT pair (Access + Refresh) is generated.
+### Authentication & Security
+
+#### OAuth Flow
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant C as CLI / Web
+    participant A as API (Hono)
+    participant G as GitHub
+
+    U->>C: Clicks Login
+    C->>A: GET /auth/github
+    A->>G: Redirect to GitHub
+    G->>U: Auth Request
+    U->>G: Approve
+    G->>A: GET /auth/github/callback?code=...
+    A->>G: Exchange Code for Profile
+    G->>A: User Profile Data
+    A->>A: Upsert User & Create JWTs
+    A->>C: Redirect (Web) or JSON Tokens (CLI)
+```
 
 ### RBAC (Roles)
 - **Admin**: Can create, update, and delete profiles.
 - **Analyst**: Can view and search profiles.
 
 ### Security Headers
-- CORS enabled with strict origin matching.
+- CORS enabled with dynamic origin support.
 - API Versioning enforced via `X-API-Version: 1` header.
+- Rate Limiting: Max 10 requests per window on authentication endpoints.
 
 ---
 
@@ -70,6 +87,9 @@ src/
 - `POST /auth/refresh`: Refresh expired access tokens.
 - `POST /auth/logout`: Invalidate session and clear cookies.
 - `GET /auth/whoami`: Get current authenticated user details.
+
+### Users
+- `GET /api/users/me`: Current user profile (standard management endpoint).
 
 ### Profiles
 - `GET /api/profiles`: List profiles with filtering and pagination.
