@@ -22,6 +22,7 @@ export type AppBindings = {
   GITHUB_AUTH_URL?: string;
   GITHUB_TOKEN_URL?: string;
   GITHUB_USER_API_URL?: string;
+  ADMIN_NAME?: string;
 };
 
 export type AppVariables = {

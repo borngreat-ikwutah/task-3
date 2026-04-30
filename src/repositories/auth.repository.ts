@@ -48,6 +48,7 @@ export async function upsertUser(
         username: user.username,
         email: user.email,
         avatarUrl: user.avatarUrl,
+        role: user.role,
         lastLoginAt: user.lastLoginAt,
       },
     })

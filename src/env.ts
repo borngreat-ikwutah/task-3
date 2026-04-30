@@ -32,6 +32,7 @@ const envSchema = z.object({
     .url()
     .default("https://github.com/login/oauth/access_token"),
   GITHUB_USER_API_URL: z.string().url().default("https://api.github.com/user"),
+  ADMIN_NAME: z.string().default("Borngreat Ikwutah"),
 });
 
 type EnvInput = Record<string, string | undefined>;

@@ -10,7 +10,7 @@ import { authRoute } from "./routes/auth.route";
 import { HonoEnv } from "./types/hono";
 import { getEnv } from "./env";
 
-const app = new OpenAPIHono<HonoEnv>();
+const app = new OpenAPIHono<HonoEnv>({ strict: false });
 
 app.use(
   "*",
@@ -96,13 +96,9 @@ app.get("/", (c) => {
 
 app.route("/auth", authRoute);
 
-// Protected routes - apply auth middleware to api/profiles
-const protectedProfiles = new OpenAPIHono<HonoEnv>()
-  .use(authenticateToken)
-  .use(enforceActiveUser)
-  .route("", profilesRoute as any);
-
-app.route("/api/profiles", protectedProfiles);
+// Protected routes - apply auth middleware to all /api/profiles routes
+app.use("/api/profiles*", authenticateToken, enforceActiveUser);
+app.route("/api/profiles", profilesRoute);
 
 app.onError((err, c) => {
   console.error(err);

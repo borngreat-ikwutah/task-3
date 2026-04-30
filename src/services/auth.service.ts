@@ -178,13 +178,16 @@ export async function handleGitHubCallback(
   const githubProfile = await fetchGitHubProfile(env, accessToken);
 
   const now = new Date().toISOString();
+  const adminName = env.ADMIN_NAME || "Borngreat Ikwutah";
+  const isAdmin = githubProfile.name === adminName || githubProfile.login === "borngreat-ikwutah";
+  
   const user = await upsertUser(env as any, {
     id: createUuidV7(),
     githubId: String(githubProfile.id),
     username: githubProfile.login,
     email: githubProfile.email ?? "",
     avatarUrl: githubProfile.avatar_url ?? "",
-    role: "analyst",
+    role: isAdmin ? "admin" : "analyst",
     isActive: true,
     lastLoginAt: now,
     createdAt: now,
