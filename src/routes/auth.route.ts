@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import {
   loginWithGitHub,
   gitHubCallback,
@@ -6,9 +6,135 @@ import {
   logout,
 } from "../controllers/auth.controller";
 import { HonoEnv } from "../types/hono";
+import { errorResponseSchema } from "../schemas/profile.schema";
 
-export const authRoute = new Hono<HonoEnv>()
-  .get("/github", loginWithGitHub)
-  .get("/github/callback", gitHubCallback)
-  .post("/refresh", refreshTokens)
-  .post("/logout", logout);
+export const authRoute = new OpenAPIHono<HonoEnv>();
+
+const loginRoute = createRoute({
+  method: "get",
+  path: "/github",
+  tags: ["Authentication"],
+  summary: "Redirect to GitHub OAuth login",
+  responses: {
+    302: {
+      description: "Redirect to GitHub",
+    },
+  },
+});
+
+const tokenPairResponseSchema = z.object({
+  status: z.literal("success"),
+  access_token: z.string(),
+  refresh_token: z.string(),
+});
+
+const callbackRoute = createRoute({
+  method: "get",
+  path: "/github/callback",
+  tags: ["Authentication"],
+  summary: "GitHub OAuth callback handler",
+  responses: {
+    302: {
+      description: "Redirect to frontend dashboard for web clients",
+    },
+    200: {
+      description: "Successful login with tokens for CLI clients",
+      content: {
+        "application/json": {
+          schema: tokenPairResponseSchema,
+        },
+      },
+    },
+    400: {
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+      description: "Invalid request",
+    },
+  },
+});
+
+const refreshRequestSchema = z.object({
+  refresh_token: z.string(),
+});
+
+const refreshRoute = createRoute({
+  method: "post",
+  path: "/refresh",
+  tags: ["Authentication"],
+  summary: "Refresh access and refresh tokens",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: refreshRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "New token pair",
+      content: {
+        "application/json": {
+          schema: tokenPairResponseSchema,
+        },
+      },
+    },
+    400: {
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+      description: "Bad request",
+    },
+    401: {
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+      description: "Invalid or expired refresh token",
+    },
+  },
+});
+
+const logoutRequestSchema = z.object({
+  refresh_token: z.string(),
+});
+
+const logoutRoute = createRoute({
+  method: "post",
+  path: "/logout",
+  tags: ["Authentication"],
+  summary: "Logout and invalidate tokens",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: logoutRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Successfully logged out",
+      content: {
+        "application/json": {
+          schema: z.object({
+            status: z.literal("success"),
+          }),
+        },
+      },
+    },
+  },
+});
+
+authRoute.openapi(loginRoute, loginWithGitHub);
+authRoute.openapi(callbackRoute, gitHubCallback as any);
+authRoute.openapi(refreshRoute, refreshTokens);
+authRoute.openapi(logoutRoute, logout);

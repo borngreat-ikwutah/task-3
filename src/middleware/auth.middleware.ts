@@ -1,33 +1,35 @@
 import { Context, Next, MiddlewareHandler } from "hono";
+import { getCookie } from "hono/cookie";
 import { verifyJwt } from "../lib/jwt";
 import { AUTH_ERRORS, type AuthenticatedUser } from "../types/auth";
 import { findUserByGithubId } from "../repositories/auth.repository";
 import { HonoEnv } from "../types/hono";
 
 /**
- * Extract token from Authorization header
- * Expects: "Bearer <token>"
+ * Extract token from Authorization header (Bearer <token>)
  */
-function extractToken(authHeader?: string): string | null {
+function extractBearerToken(authHeader?: string): string | null {
   if (!authHeader) return null;
-  const parts = authHeader.split(" ");
-  if (parts.length !== 2 || parts[0] !== "Bearer") return null;
-  return parts[1];
+  const [scheme, token] = authHeader.split(" ");
+  return scheme === "Bearer" ? token : null;
 }
 
 /**
  * Core authentication middleware
- * Validates JWT token and attaches user context
  */
 export const authenticateToken: MiddlewareHandler<HonoEnv> = async (
   c: Context<HonoEnv>,
   next: Next,
 ) => {
-  const token = extractToken(c.req.header("Authorization"));
+  // 1. Try Header first, then try Cookie
+  const token =
+    extractBearerToken(c.req.header("Authorization")) ??
+    getCookie(c, "access_token");
+
   const jwtSecret = c.env.JWT_ACCESS_SECRET;
 
-  // No token found
   if (!token) {
+    console.warn("[Auth] No token found in Authorization header or Cookies");
     return c.json(
       {
         status: "error",
@@ -38,8 +40,8 @@ export const authenticateToken: MiddlewareHandler<HonoEnv> = async (
     );
   }
 
-  // No JWT secret configured
   if (!jwtSecret) {
+    console.error("[Auth] JWT_ACCESS_SECRET is not configured in environment");
     return c.json(
       {
         status: "error",
@@ -50,14 +52,16 @@ export const authenticateToken: MiddlewareHandler<HonoEnv> = async (
     );
   }
 
-  // Verify token
+  // 2. Verify JWT
   const result = await verifyJwt({ token, secret: jwtSecret });
+
   if (!result.valid) {
+    console.error("[Auth] JWT Verification failed:", result);
     return c.json(
       {
         status: "error",
         code: AUTH_ERRORS.INVALID_TOKEN.code,
-        message: AUTH_ERRORS.INVALID_TOKEN.message,
+        message: "Session expired or invalid token",
       },
       401,
     );
@@ -65,8 +69,9 @@ export const authenticateToken: MiddlewareHandler<HonoEnv> = async (
 
   const payload = result.payload;
 
-  // Check token type
+  // 3. Check token type (Ensure it's an access token, not a refresh token)
   if (payload.type !== "access") {
+    console.warn("[Auth] Invalid token type provided:", payload.type);
     return c.json(
       {
         status: "error",
@@ -77,14 +82,17 @@ export const authenticateToken: MiddlewareHandler<HonoEnv> = async (
     );
   }
 
-  // Fetch full user from DB to get latest is_active status
+  // 4. Resolve User from Database
   let authenticatedUser: AuthenticatedUser | null = null;
+
   if (payload.githubId) {
     try {
+      // Ensure your repository uses the correct DB binding from c.env
       const user = await findUserByGithubId(
         c.env as any,
         payload.githubId as string,
       );
+
       if (user) {
         authenticatedUser = {
           id: user.id,
@@ -95,43 +103,46 @@ export const authenticateToken: MiddlewareHandler<HonoEnv> = async (
           role: (user.role as "admin" | "analyst") || "analyst",
           isActive: user.isActive,
         };
+      } else {
+        console.warn(
+          `[Auth] User not found in database for GitHub ID: ${payload.githubId}`,
+        );
       }
     } catch (error) {
-      console.error("Failed to fetch user from DB:", error);
+      console.error("[Auth] Database lookup error:", error);
     }
   }
 
-  // If we couldn't load the user, reject the request
+  // 5. Final check: Reject if user context couldn't be built
   if (!authenticatedUser) {
     return c.json(
       {
         status: "error",
         code: AUTH_ERRORS.INVALID_TOKEN.code,
-        message: AUTH_ERRORS.INVALID_TOKEN.message,
+        message: "User account no longer exists or is invalid",
       },
       401,
     );
   }
 
-  // Store in variables for downstream handlers
+  // Success: Attach to context
   c.set("user", authenticatedUser);
   c.set("payload", payload);
 
-  // Proceed to next middleware/handler
   await next();
 };
 
 /**
  * Enforce that user is active
- * Use this AFTER authenticateToken
  */
 export const enforceActiveUser: MiddlewareHandler<HonoEnv> = async (
-  c: Context<HonoEnv>,
-  next: Next,
+  c,
+  next,
 ) => {
   const user = c.get("user");
 
   if (!user?.isActive) {
+    console.warn(`[Auth] Inactive user attempted access: ${user?.username}`);
     return c.json(
       {
         status: "error",
@@ -146,10 +157,11 @@ export const enforceActiveUser: MiddlewareHandler<HonoEnv> = async (
 };
 
 /**
- * RBAC - Enforce specific role(s)
- * Use this AFTER authenticateToken
+ * Role-Based Access Control
  */
-export function requireRole(...roles: string[]): MiddlewareHandler<HonoEnv> {
+export function requireRole(
+  ...roles: ("admin" | "analyst")[]
+): MiddlewareHandler<HonoEnv> {
   return async (c: Context<HonoEnv>, next: Next) => {
     const user = c.get("user");
 

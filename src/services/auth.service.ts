@@ -7,7 +7,12 @@ import {
   revokeRefreshToken,
   findUserById,
 } from "../repositories/auth.repository";
-import { AuthError, AUTH_ERRORS, type AuthTokens, type GitHubUser } from "../types/auth";
+import {
+  AuthError,
+  AUTH_ERRORS,
+  type AuthTokens,
+  type GitHubUser,
+} from "../types/auth";
 import { createUuidV7 } from "../utils";
 import { AppBindings } from "../types/hono";
 
@@ -24,7 +29,8 @@ export function getGitHubAuthorizeUrl(
     );
   }
 
-  const authUrl = env.GITHUB_AUTH_URL || "https://github.com/login/oauth/authorize";
+  const authUrl =
+    env.GITHUB_AUTH_URL || "https://github.com/login/oauth/authorize";
   const url = new URL(authUrl);
   url.searchParams.set("client_id", env.GITHUB_CLIENT_ID);
   url.searchParams.set("redirect_uri", env.GITHUB_CALLBACK_URL);
@@ -44,7 +50,11 @@ async function exchangeGitHubCode(
   code: string,
   codeVerifier?: string,
 ) {
-  if (!env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET || !env.GITHUB_CALLBACK_URL) {
+  if (
+    !env.GITHUB_CLIENT_ID ||
+    !env.GITHUB_CLIENT_SECRET ||
+    !env.GITHUB_CALLBACK_URL
+  ) {
     throw new AuthError(
       AUTH_ERRORS.MISSING_OAUTH_CONFIG.code,
       AUTH_ERRORS.MISSING_OAUTH_CONFIG.statusCode,
@@ -52,7 +62,8 @@ async function exchangeGitHubCode(
     );
   }
 
-  const tokenUrl = env.GITHUB_TOKEN_URL || "https://github.com/login/oauth/access_token";
+  const tokenUrl =
+    env.GITHUB_TOKEN_URL || "https://github.com/login/oauth/access_token";
   const response = await fetch(tokenUrl, {
     method: "POST",
     headers: {
@@ -88,7 +99,10 @@ async function exchangeGitHubCode(
   return data.access_token;
 }
 
-async function fetchGitHubProfile(env: AppBindings, accessToken: string): Promise<GitHubUser> {
+async function fetchGitHubProfile(
+  env: AppBindings,
+  accessToken: string,
+): Promise<GitHubUser> {
   const userApiUrl = env.GITHUB_USER_API_URL || "https://api.github.com/user";
   const response = await fetch(userApiUrl, {
     headers: {

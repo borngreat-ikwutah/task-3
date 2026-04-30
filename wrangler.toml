@@ -1,4 +1,4 @@
-name = "hng-task-2"
+name = "hng-task-3"
 main = "src/index.ts"
 compatibility_date = "2026-04-17"
 compatibility_flags = ["nodejs_compat"]
@@ -9,4 +9,24 @@ database_name = "hng-task-1-db"
 database_id = "1e28a386-9b75-4b79-bb82-9aca4fc68e25"
 
 [vars]
-NODE_ENV = "production"
+NODE_ENV = "development"
+LOCAL_URL = "http://127.0.0.1:8787"
+PRODUCTION_URL = "https://api.yourdomain.com"
+
+# GitHub OAuth
+GITHUB_CLIENT_ID = "Iv23liR4eu8cau8BMSSC"
+GITHUB_CALLBACK_URL = "http://localhost:8787/auth/github/callback"
+
+
+# JWT_ACCESS_SECRET = ""
+# JWT_REFRESH_SECRET = ""
+
+# External API URLs
+GENDERIZE_API_URL = "https://api.genderize.io"
+AGIFY_API_URL = "https://api.agify.io"
+NATIONALIZE_API_URL = "https://api.nationalize.io"
+
+# GitHub API URLs
+GITHUB_AUTH_URL = "https://github.com/login/oauth/authorize"
+GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
+GITHUB_USER_API_URL = "https://api.github.com/user"

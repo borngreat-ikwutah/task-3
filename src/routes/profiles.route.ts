@@ -1,5 +1,4 @@
-import { zValidator } from "@hono/zod-validator";
-import { Hono } from "hono";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import {
   createProfileController,
   deleteProfileController,
@@ -12,88 +11,161 @@ import {
   createProfileRequestSchema,
   profileParamsSchema,
   profileQuerySchema,
+  profileResponseSchema,
+  profileListResponseSchema,
+  errorResponseSchema,
 } from "../schemas/profile.schema";
 import { requireRole } from "../middleware/auth.middleware";
+import { HonoEnv } from "../types/hono";
 
-export const profilesRoute = new Hono()
-  .post(
-    "/",
-    requireRole("admin"),
-    zValidator("json", createProfileRequestSchema, (result, c) => {
-      if (!result.success) {
-        return c.json(
-          {
-            status: "error",
-            message: "Invalid request body",
-          },
-          422,
-        );
-      }
-    }),
-    createProfileController,
-  )
-  .get(
-    "/",
-    zValidator("query", profileQuerySchema, (result, c) => {
-      if (!result.success) {
-        return c.json(
-          {
-            status: "error",
-            message: "Invalid query parameters",
-          },
-          400,
-        );
-      }
-    }),
-    listProfilesController,
-  )
-  .get(
-    "/search",
-    zValidator("query", profileQuerySchema, (result, c) => {
-      if (!result.success) {
-        return c.json(
-          {
-            status: "error",
-            message: "Invalid query parameters",
-          },
-          400,
-        );
-      }
-    }),
-    searchProfilesController,
-  )
-  .get(
-    "/export",
-    exportProfilesController,
-  )
-  .get(
-    "/:id",
-    zValidator("param", profileParamsSchema, (result, c) => {
-      if (!result.success) {
-        return c.json(
-          {
-            status: "error",
-            message: "Invalid profile id",
-          },
-          400,
-        );
-      }
-    }),
-    getProfileByIdController,
-  )
-  .delete(
-    "/:id",
-    requireRole("admin"),
-    zValidator("param", profileParamsSchema, (result, c) => {
-      if (!result.success) {
-        return c.json(
-          {
-            status: "error",
-            message: "Invalid profile id",
-          },
-          400,
-        );
-      }
-    }),
-    deleteProfileController,
-  );
+export const profilesRoute = new OpenAPIHono<HonoEnv>();
+
+const listProfilesRoute = createRoute({
+  method: "get",
+  path: "/",
+  tags: ["Profiles"],
+  summary: "List all profiles with filtering and pagination",
+  request: {
+    query: profileQuerySchema,
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: profileListResponseSchema,
+        },
+      },
+      description: "List of profiles",
+    },
+    400: {
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+      description: "Invalid query parameters",
+    },
+  },
+});
+
+const searchProfilesRoute = createRoute({
+  method: "get",
+  path: "/search",
+  tags: ["Profiles"],
+  summary: "Search profiles using natural language or keywords",
+  request: {
+    query: profileQuerySchema,
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: profileListResponseSchema,
+        },
+      },
+      description: "Search results",
+    },
+  },
+});
+
+const createProfileRoute = createRoute({
+  method: "post",
+  path: "/",
+  tags: ["Profiles"],
+  summary: "Create a new profile (Admin only)",
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: createProfileRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      content: {
+        "application/json": {
+          schema: profileResponseSchema,
+        },
+      },
+      description: "Profile created",
+    },
+    403: {
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+      description: "Forbidden - Admin role required",
+    },
+  },
+});
+
+const getProfileRoute = createRoute({
+  method: "get",
+  path: "/{id}",
+  tags: ["Profiles"],
+  summary: "Get a profile by ID",
+  request: {
+    params: profileParamsSchema,
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: profileResponseSchema,
+        },
+      },
+      description: "Profile details",
+    },
+    404: {
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+      description: "Profile not found",
+    },
+  },
+});
+
+const deleteProfileRoute = createRoute({
+  method: "delete",
+  path: "/{id}",
+  tags: ["Profiles"],
+  summary: "Delete a profile by ID (Admin only)",
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: profileParamsSchema,
+  },
+  responses: {
+    204: {
+      description: "Profile deleted",
+    },
+    403: {
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+      description: "Forbidden",
+    },
+  },
+});
+
+profilesRoute.openapi(listProfilesRoute, listProfilesController as any);
+profilesRoute.openapi(searchProfilesRoute, searchProfilesController as any);
+profilesRoute.openapi(createProfileRoute, async (c) => {
+  const denied = await requireRole("admin")(c, async () => {});
+  if (denied) return denied as any;
+  return createProfileController(c);
+});
+profilesRoute.openapi(getProfileRoute, getProfileByIdController as any);
+profilesRoute.openapi(deleteProfileRoute, async (c) => {
+  const denied = await requireRole("admin")(c, async () => {});
+  if (denied) return denied as any;
+  return deleteProfileController(c);
+});
+profilesRoute.get("/export", exportProfilesController as any);
