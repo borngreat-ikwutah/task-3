@@ -32,10 +32,10 @@ export type ApiSuccess<T> = {
 export type ProfileResponse = {
   id: string;
   name: string;
-  gender: string;
+  gender: "male" | "female";
   gender_probability: number;
   age: number;
-  age_group: string;
+  age_group: "child" | "teenager" | "adult" | "senior";
   country_id: string;
   country_name: string;
   country_probability: number;
@@ -77,10 +77,10 @@ function toProfileResponse(profile: ProfileRecord): ProfileResponse {
   return {
     id: profile.id,
     name: profile.name,
-    gender: profile.gender,
+    gender: profile.gender as "male" | "female",
     gender_probability: profile.genderProbability,
     age: profile.age,
-    age_group: profile.ageGroup,
+    age_group: profile.ageGroup as "child" | "teenager" | "adult" | "senior",
     country_id: profile.countryId,
     country_name: profile.countryName,
     country_probability: profile.countryProbability,

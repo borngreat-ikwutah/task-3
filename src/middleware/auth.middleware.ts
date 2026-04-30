@@ -57,11 +57,16 @@ export const authenticateToken: MiddlewareHandler<HonoEnv> = async (
 
   if (!result.valid) {
     console.error("[Auth] JWT Verification failed:", result);
+    const isExpired = result.reason === "expired";
     return c.json(
       {
         status: "error",
-        code: AUTH_ERRORS.INVALID_TOKEN.code,
-        message: "Session expired or invalid token",
+        code: isExpired
+          ? AUTH_ERRORS.EXPIRED_TOKEN.code
+          : AUTH_ERRORS.INVALID_TOKEN.code,
+        message: isExpired
+          ? AUTH_ERRORS.EXPIRED_TOKEN.message
+          : "Session expired or invalid token",
       },
       401,
     );

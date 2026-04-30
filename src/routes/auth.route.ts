@@ -5,8 +5,13 @@ import {
   refreshTokens,
   logout,
 } from "../controllers/auth.controller";
+import {
+  authenticateToken,
+  enforceActiveUser,
+} from "../middleware/auth.middleware";
 import { HonoEnv } from "../types/hono";
 import { errorResponseSchema } from "../schemas/profile.schema";
+import { zValidator } from "@hono/zod-validator";
 
 export const authRoute = new OpenAPIHono<HonoEnv>();
 
@@ -173,9 +178,11 @@ const whoamiRoute = createRoute({
 
 authRoute.openapi(loginRoute, loginWithGitHub);
 authRoute.openapi(callbackRoute, gitHubCallback as any);
-authRoute.openapi(refreshRoute, refreshTokens);
-authRoute.openapi(logoutRoute, logout);
-authRoute.openapi(whoamiRoute, (c) => {
+authRoute.openapi(refreshRoute, zValidator("json", refreshRequestSchema) as any, refreshTokens as any);
+authRoute.openapi(logoutRoute, zValidator("json", logoutRequestSchema) as any, logout as any);
+authRoute.use("/whoami", authenticateToken, enforceActiveUser);
+
+authRoute.openapi(whoamiRoute, (async (c: any) => {
   const user = c.get("user");
   return c.json(
     {
@@ -184,4 +191,4 @@ authRoute.openapi(whoamiRoute, (c) => {
     },
     200,
   );
-});
+}) as any);

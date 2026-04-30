@@ -155,18 +155,46 @@ export async function refreshTokens(c: Context<HonoEnv>) {
 }
 
 export async function logout(c: Context<HonoEnv>) {
+  // Ensure it's a POST request (Hono route will enforce this, but double check here if needed)
+  if (c.req.method !== "POST") {
+    return c.json(
+      {
+        status: "error",
+        message: "Method not allowed",
+      },
+      405,
+    );
+  }
+
   const body = await c.req.json().catch(() => ({}));
   const refreshToken = body.refresh_token;
 
-  if (refreshToken) {
-    await logoutService(c.env, refreshToken);
+  if (!refreshToken) {
+    return c.json(
+      {
+        status: "error",
+        message: "Missing refresh token",
+      },
+      400,
+    );
   }
 
-  return c.json(
-    {
-      status: "success" as const,
-      message: "Logged out successfully",
-    },
-    200,
-  );
+  try {
+    await logoutService(c.env, refreshToken);
+    return c.json(
+      {
+        status: "success" as const,
+        message: "Logged out successfully",
+      },
+      200,
+    );
+  } catch (error) {
+    return c.json(
+      {
+        status: "error",
+        message: "Failed to logout",
+      },
+      500,
+    );
+  }
 }

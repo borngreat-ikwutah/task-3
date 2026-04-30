@@ -81,12 +81,15 @@ export async function signJwt(input: JwtInput): Promise<string> {
 
 export async function verifyJwt(
   input: VerifyJwtInput,
-): Promise<{ valid: true; payload: JwtPayload } | { valid: false }> {
+): Promise<
+  | { valid: true; payload: JwtPayload }
+  | { valid: false; reason: "expired" | "invalid" }
+> {
   try {
     const parts = input.token.split(".");
 
     if (parts.length !== 3) {
-      return { valid: false };
+      return { valid: false, reason: "invalid" };
     }
 
     const [encodedHeader, encodedPayload, signature] = parts;
@@ -109,7 +112,7 @@ export async function verifyJwt(
     );
 
     if (!isValid) {
-      return { valid: false };
+      return { valid: false, reason: "invalid" };
     }
 
     // Decode payload
@@ -118,11 +121,11 @@ export async function verifyJwt(
     // Verify expiration
     const now = Math.floor(Date.now() / 1000);
     if (payload.exp < now) {
-      return { valid: false };
+      return { valid: false, reason: "expired" };
     }
 
     return { valid: true, payload };
   } catch {
-    return { valid: false };
+    return { valid: false, reason: "invalid" };
   }
 }

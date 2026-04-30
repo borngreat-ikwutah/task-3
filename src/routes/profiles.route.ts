@@ -15,10 +15,17 @@ import {
   profileListResponseSchema,
   errorResponseSchema,
 } from "../schemas/profile.schema";
-import { requireRole } from "../middleware/auth.middleware";
+import {
+  authenticateToken,
+  enforceActiveUser,
+  requireRole,
+} from "../middleware/auth.middleware";
 import { HonoEnv } from "../types/hono";
 
 export const profilesRoute = new OpenAPIHono<HonoEnv>();
+
+// Apply auth middleware to all profile routes
+profilesRoute.use("*", authenticateToken, enforceActiveUser);
 
 const listProfilesRoute = createRoute({
   method: "get",
@@ -157,15 +164,23 @@ const deleteProfileRoute = createRoute({
 
 profilesRoute.openapi(listProfilesRoute, listProfilesController as any);
 profilesRoute.openapi(searchProfilesRoute, searchProfilesController as any);
-profilesRoute.openapi(createProfileRoute, async (c) => {
-  const denied = await requireRole("admin")(c, async () => {});
-  if (denied) return denied as any;
+
+profilesRoute.openapi(createProfileRoute, (async (c: any) => {
   return createProfileController(c);
+}) as any);
+
+// For admin-only routes, we can use the middleware on the specific path
+profilesRoute.use("/:id", async (c, next) => {
+  if (c.req.method === "DELETE") return requireRole("admin")(c, next);
+  return next();
 });
+profilesRoute.use("/", async (c, next) => {
+  if (c.req.method === "POST") return requireRole("admin")(c, next);
+  return next();
+});
+
 profilesRoute.openapi(getProfileRoute, getProfileByIdController as any);
-profilesRoute.openapi(deleteProfileRoute, async (c) => {
-  const denied = await requireRole("admin")(c, async () => {});
-  if (denied) return denied as any;
+profilesRoute.openapi(deleteProfileRoute, (async (c: any) => {
   return deleteProfileController(c);
-});
+}) as any);
 profilesRoute.get("/export", exportProfilesController as any);
