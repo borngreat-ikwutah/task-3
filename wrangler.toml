@@ -9,7 +9,7 @@ database_name = "hng-task-1-db"
 database_id = "1e28a386-9b75-4b79-bb82-9aca4fc68e25"
 
 [vars]
-NODE_ENV = "development"
+NODE_ENV = "production"
 LOCAL_URL = "http://127.0.0.1:8787"
 PRODUCTION_URL = "https://api.yourdomain.com"
 

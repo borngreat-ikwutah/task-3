@@ -96,8 +96,9 @@ app.get("/", (c) => {
 
 app.route("/auth", authRoute);
 
-// Protected routes - apply auth middleware to all /api/profiles routes
+// Protected routes - apply auth middleware to /api/profiles and /auth/whoami
 app.use("/api/profiles*", authenticateToken, enforceActiveUser);
+app.use("/auth/whoami", authenticateToken, enforceActiveUser);
 app.route("/api/profiles", profilesRoute);
 
 app.onError((err, c) => {

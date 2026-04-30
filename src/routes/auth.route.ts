@@ -134,7 +134,54 @@ const logoutRoute = createRoute({
   },
 });
 
+const whoamiRoute = createRoute({
+  method: "get",
+  path: "/whoami",
+  tags: ["Authentication"],
+  summary: "Get current authenticated user",
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: "Current user details",
+      content: {
+        "application/json": {
+          schema: z.object({
+            status: z.literal("success"),
+            data: z.object({
+              id: z.string(),
+              githubId: z.string(),
+              username: z.string(),
+              email: z.string(),
+              avatarUrl: z.string(),
+              role: z.enum(["admin", "analyst"]),
+              isActive: z.boolean(),
+            }),
+          }),
+        },
+      },
+    },
+    401: {
+      description: "Unauthorized",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
 authRoute.openapi(loginRoute, loginWithGitHub);
 authRoute.openapi(callbackRoute, gitHubCallback as any);
 authRoute.openapi(refreshRoute, refreshTokens);
 authRoute.openapi(logoutRoute, logout);
+authRoute.openapi(whoamiRoute, (c) => {
+  const user = c.get("user");
+  return c.json(
+    {
+      status: "success" as const,
+      data: user,
+    },
+    200,
+  );
+});
