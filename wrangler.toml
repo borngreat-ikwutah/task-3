@@ -11,11 +11,12 @@ database_id = "1e28a386-9b75-4b79-bb82-9aca4fc68e25"
 [vars]
 NODE_ENV = "production"
 LOCAL_URL = "http://127.0.0.1:8787"
-PRODUCTION_URL = "https://api.yourdomain.com"
+PRODUCTION_URL = "https://hng-task-3.iagocech2056.workers.dev"
 
 # GitHub OAuth
 GITHUB_CLIENT_ID = "Iv23liR4eu8cau8BMSSC"
-GITHUB_CALLBACK_URL = "http://localhost:8787/auth/github/callback"
+GITHUB_CALLBACK_URL = "https://hng-task-3.iagocech2056.workers.dev/auth/github/callback"
+FRONTEND_URL="https://insighta-frontend-phi.vercel.app"
 
 
 # JWT_ACCESS_SECRET = ""
